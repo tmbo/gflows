@@ -1,0 +1,26 @@
+language: python
+python:
+- '3.6'
+install:
+- pip install -r dev-requirements.txt
+- pip install -e .
+- pip list
+script:
+- travis_wait py.test tests --cov gflows --pep8 -v
+after_success:
+- coveralls
+jobs:
+  include:
+  - stage: deploy
+    python: 3.6
+    install: skip
+    script: skip
+    deploy:
+      provider: pypi
+      user: tmbo
+      distributions: "sdist bdist_wheel"
+      on:
+        branch: master
+        tags: true
+      password:
+        secure: "n6KlMR8oqJbqP+W0U+BOUokfWsDCi7YkX19VdHgd4YBSJPSDriAM7WYEOGgOVkGUCaHsCTbMI+wVzMzXFWb89gwpY1tcCi/s77NOrfQv27708WJpC7XlXvkH5iJ3QMdQyt11XL5wN9aUuE402zQK3UIG3gPc1QBlKnOXqDCNoXzkWwDZbtCPaDmZT8sKbytveVaBYEZlL7xx3wI4Fw/przFdn03+Zu/OopAc2sra47sxQprSshzMYGyEyyQ75OcD0wP16Ye/JKC9Y5IJP/J2Rua3RFP8AH6h6juj8ZZN7zvByJ5P0KcLhb8V8u3QnTTTY/Vh9Ah8PTg5IqVuG/V0d4THh+JHA3W6fXLTgRFCv5yzuDXqmBfe3Oetd+iL7SOUJLkOUWMEkHTYf8b7Er3qIZ3aO+UjLKEVjUwr4fw4NQqy3ikRP9lePql0mnDEqT7y5AvhwdpVvEHg9Pl/nsD56yJA7PvAyfF/rvN/6DKoAg9WeLOC0e1DD2NJWc9MLQsrJauyCGc+fnh8GrcJwaw1EyUBtDpLe1eHgsth+QDAHDNVgtcCTUuY+OoRlYYHQVoXn0XxRT7R6uOOmXWhq2dFLIRHKASjZALUNYJ7qVIzfF3SogZ0nDQzgfijPAQb2TygSA5g2QoFI6A+OxdQSchtMuS2uDn6RY5XM3m4wlvksAg="
