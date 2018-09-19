@@ -27,8 +27,11 @@ class Workflows:
         for workflow in self.workflows:
             workflow.hook(event_type, payload, self.gh)
 
-    def run(self, port=8383):
+    def app(self):
         for workflow in self.workflows:
             workflow.start(self.gh)
 
-        create_app(self.hook, self.secret).run(host="0.0.0.0", port=port)
+        return create_app(self.hook, self.secret)
+
+    def run(self, port=8383):
+        self.app().run(host="0.0.0.0", port=port)
