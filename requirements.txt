@@ -1,0 +1,2 @@
+flask==1.0.2
+PyGithub==1.43.2
