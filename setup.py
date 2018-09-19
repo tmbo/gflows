@@ -13,7 +13,10 @@ with io.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 tests_requires = [
-
+    "pytest~=3.5",
+    "pytest-pep8~=1.0",
+    "pytest-cov~=2.5",
+    "httpretty~=0.9",
 ]
 
 install_requires = [
