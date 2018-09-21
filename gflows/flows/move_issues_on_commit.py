@@ -1,6 +1,6 @@
 import logging
 import re
-from github import Github
+from github import Github, UnknownObjectException
 from github.GithubObject import NotSet
 from github.Issue import Issue
 from github.Repository import Repository
@@ -62,21 +62,50 @@ class MoveIssues(Workflow):
             self._handle_card_update(data, gh)
 
         elif event_type == "issue_comment":
-            target_repo = self._extract_move_target(data["comment"]["body"])
-            if target_repo:
-                source_repo = data["repository"]["full_name"]
+            self._handle_move_command(data, gh)
 
-                if "/" not in target_repo:
-                    target_repo = source_repo.split("/")[0] + "/" + target_repo
+    def _handle_move_command(self, data, gh):
+        target_repo = self._extract_move_target(data["comment"]["body"])
+        if not target_repo:
+            return
+        try:
+            source_repo = data["repository"]["full_name"]
 
-                if self._has_permissions(gh,
-                                         data["sender"]["login"],
-                                         data["repository"]["full_name"],
-                                         target_repo):
+            if "/" not in target_repo:
+                target_repo = source_repo.split("/")[0] + "/" + target_repo
+
+            if self._has_permissions(gh,
+                                     data["sender"]["login"],
+                                     data["repository"]["full_name"],
+                                     target_repo):
+                if source_repo.lower() != target_repo.lower():
                     self._move_issue(data["issue"]["number"],
                                      source_repo,
                                      target_repo,
                                      gh)
+                else:
+                    self._comment_same_repo(data["issue"]["number"],
+                                            source_repo,
+                                            gh)
+        except UnknownObjectException:
+            self._comment_invalid_target(data["issue"]["number"],
+                                         data["repository"]["full_name"],
+                                         target_repo,
+                                         gh)
+
+    def _comment_invalid_target(self, issue_number, source_name, target_repo,
+                                gh):
+        source: Repository = gh.get_repo(source_name)
+
+        issue = source.get_issue(issue_number)
+        issue.create_comment("Can't move, I don't know the repo '{}' 😅"
+                             "".format(target_repo))
+
+    def _comment_same_repo(self, issue_number, source_name, gh):
+        source: Repository = gh.get_repo(source_name)
+
+        issue = source.get_issue(issue_number)
+        issue.create_comment("Can't move, issue is already on this repo. 😅")
 
     def _move_issue(self, issue_number, source_name, target_name, gh):
         logger.info("Moved Issue #{} from '{}' to '{}'.".format(
