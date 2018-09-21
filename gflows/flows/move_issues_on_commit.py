@@ -1,5 +1,10 @@
 import logging
+import re
 from github import Github
+from github.GithubObject import NotSet
+from github.Issue import Issue
+from github.Repository import Repository
+from typing import Text
 
 from gflows.flows import utils
 from gflows.workflow import Workflow
@@ -7,7 +12,7 @@ from gflows.workflow import Workflow
 logger = logging.getLogger(__name__)
 
 
-class MoveIssuesOnCommit(Workflow):
+class MoveIssues(Workflow):
     """Automatically moves issues on a project board when there is a commit.
 
     If a commit to the issue is made, and the issue has been in the
@@ -35,12 +40,86 @@ class MoveIssuesOnCommit(Workflow):
                 column_id = int(card.column_url.split("/")[-1])
                 self._set_card(card.id, card.content_url, column_id)
 
+    @staticmethod
+    def _extract_move_target(text: Text):
+        match = re.search("/move\s+(to)?\s*([^\s]+)", text)
+        if match:
+            return match.group(2)
+        else:
+            return None
+
+    @staticmethod
+    def _has_permissions(gh: Github, user: Text, source_repo: Text,
+                         target_repo: Text):
+        return (utils.has_write_permissions(user, source_repo, gh) and
+                utils.has_write_permissions(user, target_repo, gh))
+
     def hook(self, event_type, data, gh):
         if event_type == "push":
             self._handle_commit(data, gh)
 
         elif event_type == "project_card":
             self._handle_card_update(data, gh)
+
+        elif event_type == "issue_comment":
+            target_repo = self._extract_move_target(data["comment"]["body"])
+            if target_repo:
+                source_repo = data["repository"]["full_name"]
+
+                if "/" not in target_repo:
+                    target_repo = source_repo.split("/")[0] + "/" + target_repo
+
+                if self._has_permissions(gh,
+                                         data["sender"]["login"],
+                                         data["repository"]["full_name"],
+                                         target_repo):
+                    self._move_issue(data["issue"]["number"],
+                                     source_repo,
+                                     target_repo,
+                                     gh)
+
+    def _move_issue(self, issue_number, source_name, target_name, gh):
+        logger.info("Moved Issue #{} from '{}' to '{}'.".format(
+                issue_number,
+                source_name,
+                target_name))
+
+        target: Repository = gh.get_repo(target_name)
+        source: Repository = gh.get_repo(source_name)
+
+        issue = source.get_issue(issue_number)
+
+        if target.private or not source.private:
+            body = issue.body + "\n\n Moved from {}".format(issue.html_url)
+        else:
+            body = issue.body
+
+        valid_labels = {l.name for l in target.get_labels()}
+        issue_labels = [l.name for l in issue.labels if l.name in valid_labels]
+        moved_issue: Issue = target.create_issue(
+                issue.title,
+                body or NotSet,
+                issue.assignee or NotSet,
+                labels=issue_labels or NotSet,
+                assignees=issue.assignees or NotSet)
+
+        for c in issue.get_comments():
+            if not self._extract_move_target(c.body):
+                comment = "[{}]({}) commented on _{}_:\n\n{}".format(
+                        c.user.login, c.user.html_url, c.created_at, c.body)
+                moved_issue.create_comment(comment)
+
+        if source.private or not target.private:
+            issue.create_comment("Moved to {}".format(moved_issue.html_url))
+
+        issue.edit(state="closed")
+
+        card_id, column_id = self.cards.get(
+                "{}/{}".format(source_name, issue_number), (None, None))
+
+        if card_id and column_id:
+            utils.create_card_on_column(moved_issue.id, column_id, gh)
+            utils.remove_card(card_id, gh)
 
     def _handle_card_update(self, data, gh):
         project_id = int(data["project_card"]["project_url"].split("/")[-1])

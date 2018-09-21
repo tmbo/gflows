@@ -70,6 +70,41 @@ def move_card_to_column(card_id: Text,
     )
 
 
+def create_card_on_column(issue_id: Text,
+                          column_id: Text,
+                          gh: Github) -> None:
+    """Move a card on a project board to a column."""
+
+    json = {
+        "content_type": "Issue",
+        "content_id": issue_id
+    }
+
+    gh_request(
+            gh,
+            "POST",
+            "/projects/columns/{}/cards".format(column_id),
+            input=json,
+            headers={"Accept": Consts.mediaTypeProjectsPreview}
+    )
+
+
+def remove_card(card_id: Text, gh: Github) -> None:
+    """Move a card on a project board to a column."""
+
+    gh_request(
+            gh,
+            "DELETE",
+            "/projects/columns/cards/{}".format(card_id),
+            headers={"Accept": Consts.mediaTypeProjectsPreview}
+    )
+
+
+def has_write_permissions(user: Text, repo: Text, gh: Github):
+    p = gh.get_repo(repo).get_collaborator_permission(user)
+    return p in ["admin", "write"]
+
+
 def issue_id_from_commit_message(commit_message: Text) -> Optional[int]:
     """Return the issue referenced in a commit message.
 

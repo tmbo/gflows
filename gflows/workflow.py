@@ -1,7 +1,10 @@
+import logging
 from github import Github
 from typing import List, Dict, Text, Any
 
 from gflows.server import create_app
+
+logger = logging.getLogger(__name__)
 
 
 class Workflow:
@@ -25,7 +28,10 @@ class Workflows:
 
     def hook(self, event_type, payload):
         for workflow in self.workflows:
-            workflow.hook(event_type, payload, self.gh)
+            try:
+                workflow.hook(event_type, payload, self.gh)
+            except Exception as e:
+                logger.exception("Hook failed. Payload: {}".format(payload))
 
     def app(self):
         for workflow in self.workflows:
