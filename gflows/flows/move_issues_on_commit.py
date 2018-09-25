@@ -128,7 +128,6 @@ class MoveIssues(Workflow):
         moved_issue: Issue = target.create_issue(
                 issue.title,
                 body or NotSet,
-                issue.assignee or NotSet,
                 labels=issue_labels or NotSet,
                 assignees=issue.assignees or NotSet)
 
