@@ -44,6 +44,6 @@ class CloseIssuesInColumn(Workflow):
     @staticmethod
     def _close_issue_of_card(card_id: Text, gh):
         issue = utils.issue_from_card_id(card_id, gh)
-        if issue:
+        if issue and issue.state != "closed":
             issue.edit(state="closed")
             logger.info("Closed issue {}".format(issue.url))

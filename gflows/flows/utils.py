@@ -1,7 +1,10 @@
+import logging
 import re
 from github import Consts, Github
 from github.Issue import Issue
 from typing import Text, Optional, Any, Dict
+
+logger = logging.getLogger(__name__)
 
 
 def id_from_project_name(org: Text, name: Text, gh: Github) -> Text:
@@ -119,6 +122,12 @@ def issue_id_from_commit_message(commit_message: Text) -> Optional[int]:
 
 def gh_request(gh: Github, *args: Any, **kwargs: Any):
     """Send a request to the github endpoint."""
+
+    try:
+        logger.debug("fetching {}".format(
+                ", ".join(args)))
+    except Exception:
+        pass
 
     # unfortunately, the library doesn't expose this yet, so we need to
     # do a hacky workaround
