@@ -20,7 +20,7 @@ tests_requires = [
 ]
 
 install_requires = [
-    "flask~=1.0",
+    "flask>=1,<3",
     "PyGithub~=1.43",
 ]
 
